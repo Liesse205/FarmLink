@@ -1,0 +1,9 @@
+package com.farmlink.entity;
+
+public enum ActivityType {
+    LISTING_CREATED,
+    LISTING_UPDATED,
+    PURCHASE_REQUEST_CREATED,
+    PURCHASE_REQUEST_ACCEPTED,
+    PURCHASE_REQUEST_REJECTED
+}
