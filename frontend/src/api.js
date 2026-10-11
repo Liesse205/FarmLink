@@ -7,7 +7,7 @@ async function request(path, options = {}) {
       ...options
     })
   } catch {
-    const error = new Error('Cannot reach the FarmLink server. Check your connection and try again.')
+    const error = new Error('Cannot reach the GoFarm server. Check your connection and try again.')
     error.status = 0
     throw error
   }

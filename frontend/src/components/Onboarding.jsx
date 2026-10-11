@@ -23,8 +23,8 @@ export default function Onboarding({ onRoleChosen }) {
   return (
     <section className="onboard">
       <div className="card">
-        <h1>Welcome to FarmLink</h1>
-        <p className="hint">How will you use FarmLink? This decides which dashboard you get.</p>
+        <h1>Welcome to GoFarm</h1>
+        <p className="hint">How will you use GoFarm? This decides which dashboard you get.</p>
 
         <div className="choice-grid">
           <button
@@ -52,7 +52,7 @@ export default function Onboarding({ onRoleChosen }) {
         {error && <div className="banner error" role="alert"><span>{error}</span></div>}
 
         <p className="hint small" style={{ marginTop: 16 }}>
-          Your role can&apos;t be changed later. Admin accounts are managed by the FarmLink
+          Your role can&apos;t be changed later. Admin accounts are managed by the GoFarm
           administrators.
         </p>
       </div>

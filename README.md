@@ -1,4 +1,4 @@
-# FarmLink
+# GoFarm
 
 **A local produce marketplace and order coordination platform** — smallholder farmers publish
 produce listings, local businesses browse them and submit purchase requests, and farmers
@@ -8,7 +8,7 @@ and every meaningful action is recorded in an audit trail.
 *Stack: Java 21 · Spring Boot 3.2.5 · PostgreSQL · MongoDB · RabbitMQ · Spring Security
 (Google OAuth2/OIDC) · React 18 (Vite) · Docker Compose · GitHub Actions*
 
-FarmLink is a **single layered Spring Boot monolith** (`controller → service → repository →
+GoFarm is a **single layered Spring Boot monolith** (`controller → service → repository →
 entity`) with a React single-page frontend. PostgreSQL is the source of truth, MongoDB stores
 only activity/audit events, and RabbitMQ carries only meaningful application events.
 
@@ -41,7 +41,7 @@ Smallholder farmers often struggle to reach business buyers directly: produce av
 shared informally, prices are opaque, and orders are coordinated by phone calls or
 word of mouth with no record of who asked for what.
 
-FarmLink addresses this with a focused web platform:
+GoFarm addresses this with a focused web platform:
 
 * **Farmers** publish produce listings (name, category, quantity in kg, price per kg in RWF,
   location, availability date) and manage them over time.
@@ -221,7 +221,7 @@ regardless of what the UI shows.
 
 ## 6. Architecture and Data Flow
 
-FarmLink is a **monolith**, not a microservices system: one Spring Boot application contains
+GoFarm is a **monolith**, not a microservices system: one Spring Boot application contains
 all layers and both the public API and the RabbitMQ notification consumer.
 
 ```mermaid
@@ -370,7 +370,7 @@ these are defaults for a localhost-only stack, not secrets.
 
 ```powershell
 git clone https://github.com/Liesse205/FarmLink.git
-cd FarmLink
+cd GoFarm
 ```
 
 **2. Configure environment variables** — copy `.env.example` to `.env` and edit it as
@@ -414,7 +414,7 @@ npm run dev
 
 | URL | What |
 |---|---|
-| `http://localhost:5173` | FarmLink frontend (Vite dev server) |
+| `http://localhost:5173` | GoFarm frontend (Vite dev server) |
 | `http://localhost:8080/api/health` | Backend liveness check |
 | `http://localhost:15672` | RabbitMQ management UI (user/pass: `farmlink`/`farmlink`) |
 
@@ -555,7 +555,7 @@ production deployment as-is.
 
 ## 14. Scope and Limitations
 
-FarmLink deliberately focuses on **produce listings and purchase-request coordination**.
+GoFarm deliberately focuses on **produce listings and purchase-request coordination**.
 The following are out of scope and **not implemented**: online payments, delivery/shipping
 tracking, in-app chat or messaging, maps, product reviews/ratings, e-mail or push
 notifications (notifications are in-app only), listing photos, and any AI-based features.

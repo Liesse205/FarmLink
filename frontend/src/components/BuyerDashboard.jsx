@@ -47,7 +47,7 @@ export default function BuyerDashboard({ user, onOpenListing, onBrowse }) {
       </PageHeader>
 
       <Banner kind="info">
-        FarmLink notifications arrive in-app: when a farmer answers your request you&apos;ll see
+        GoFarm notifications arrive in-app: when a farmer answers your request you&apos;ll see
         the bell in the top bar light up.
       </Banner>
 

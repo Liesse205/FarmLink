@@ -89,7 +89,7 @@ export default function App() {
     return (
       <div className="page-center">
         <span className="spinner" aria-hidden="true" />
-        <p style={{ marginLeft: 12 }}>Loading FarmLink…</p>
+        <p style={{ marginLeft: 12 }}>Loading GoFarm…</p>
       </div>
     )
   }
@@ -118,7 +118,7 @@ export default function App() {
         {needsRole && view !== 'onboarding' && (
           <div className="banner info">
             <span>
-              One step left: choose how you&apos;ll use FarmLink to unlock your dashboard.{' '}
+              One step left: choose how you&apos;ll use GoFarm to unlock your dashboard.{' '}
               <button className="btn ghost sm" onClick={() => go('onboarding')}>Finish setup</button>
             </span>
           </div>
@@ -161,7 +161,7 @@ export default function App() {
           <div className="card">
             <h2>You are not allowed to view this page</h2>
             <p className="hint">
-              This area needs a different FarmLink role than yours. Role access is enforced
+              This area needs a different GoFarm role than yours. Role access is enforced
               on the server, not just hidden in the menu.
             </p>
             <div className="form-actions">
@@ -173,7 +173,7 @@ export default function App() {
 
       <footer className="footer">
         <div className="container">
-          <span><strong>FarmLink</strong> — local produce, straight from smallholder farmers to local businesses.</span>
+          <span><strong>GoFarm</strong> — local produce, straight from smallholder farmers to local businesses.</span>
         </div>
       </footer>
     </div>

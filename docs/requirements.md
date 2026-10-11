@@ -1,6 +1,6 @@
-# FarmLink — Software Requirements Documentation
+# GoFarm — Software Requirements Documentation
 
-**Project:** FarmLink — Local Produce Marketplace & Order Coordination Platform
+**Project:** GoFarm — Local Produce Marketplace & Order Coordination Platform
 **Companion documents:** the root [`README.md`](../README.md) covers setup, running and
 testing commands; this document covers *what the system must do and how that is verified*.
 It does not repeat setup instructions.
@@ -19,7 +19,7 @@ shops, institutions). Produce availability spreads informally, prices are opaque
 orders are coordinated by phone or word of mouth, leaving no record of what was requested,
 promised, or refused.
 
-FarmLink addresses this with a web platform where farmers publish structured produce
+GoFarm addresses this with a web platform where farmers publish structured produce
 listings (item, category, quantity in kg, price per kg, location, availability date) and
 business buyers discover produce and submit **purchase requests** for a specific quantity.
 The farmer accepts or rejecting each request; accepted quantities are deducted from the

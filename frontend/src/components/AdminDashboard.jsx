@@ -72,7 +72,7 @@ export default function AdminDashboard() {
     <section>
       <PageHeader
         title="Admin dashboard"
-        subtitle="Users, listings, requests and recent activity across FarmLink."
+        subtitle="Users, listings, requests and recent activity across GoFarm."
       />
 
       <Banner kind="success" onClose={() => setNotice('')}>{notice}</Banner>

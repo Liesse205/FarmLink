@@ -65,7 +65,7 @@ export default function Marketplace({ user, onOpen, onLogin }) {
         <div className="hero-copy">
           <h1>Fresh local produce, straight from the farm</h1>
           <p className="lede">
-            FarmLink connects smallholder farmers with local businesses — discover fresh produce,
+            GoFarm connects smallholder farmers with local businesses — discover fresh produce,
             see transparent prices and order directly. No middlemen.
           </p>
           <div className="hero-actions">
@@ -165,7 +165,7 @@ export default function Marketplace({ user, onOpen, onLogin }) {
           ) : (
             <EmptyState
               title="No produce listed yet"
-              description="When farmers publish listings they appear here. Know a farmer? Invite them to FarmLink — it takes one Google login to get started."
+              description="When farmers publish listings they appear here. Know a farmer? Invite them to GoFarm — it takes one Google login to get started."
               action={!user && <button className="btn primary" onClick={onLogin}>Join as a farmer</button>}
             />
           )

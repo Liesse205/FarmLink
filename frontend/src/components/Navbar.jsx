@@ -28,10 +28,10 @@ export default function Navbar({ user, view, notifications = [], onNavigate, onL
     <header className="navbar">
       {openPanel && <div className="dropdown-overlay" onClick={close} />}
       <div className="container navbar-inner">
-        <button className="brand" onClick={() => navigate('marketplace')} aria-label="FarmLink home">
+        <button className="brand" onClick={() => navigate('marketplace')} aria-label="GoFarm home">
           <span className="brand-mark" aria-hidden="true">🌾</span>
           <span>
-            FarmLink
+            GoFarm
             <span className="brand-sub">Local produce marketplace</span>
           </span>
         </button>

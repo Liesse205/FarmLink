@@ -1,17 +1,17 @@
-# FarmLink — Data Model Documentation
+# GoFarm — Data Model Documentation
 
-**Project:** FarmLink — Local Produce Marketplace & Order Coordination Platform
+**Project:** GoFarm — Local Produce Marketplace & Order Coordination Platform
 **Companion documents:** the root [`README.md`](../README.md) covers setup and usage; this
 document describes *how the data is modelled and why*. Everything below is derived from the
 actual code: JPA entities under `backend/src/main/java/com/farmlink/entity/`,
 repositories under `repository/`, `application.yml`, `schema.sql`, `docker-compose.yml`,
-and `RabbitConfig`. FarmLink is a **layered monolith**, not a microservices system.
+and `RabbitConfig`. GoFarm is a **layered monolith**, not a microservices system.
 
 ---
 
 ## 1. Domain Overview
 
-Independent of any technology, FarmLink coordinates one business process: **a farmer offers
+Independent of any technology, GoFarm coordinates one business process: **a farmer offers
 produce, a buyer requests part of it, the farmer answers the request.**
 
 **Actors:** Farmer (offers produce), Buyer (requests produce), Administrator (oversees the

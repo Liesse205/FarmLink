@@ -136,7 +136,7 @@ export default function ListingDetails({ listingId, user, onBack, onLogin, onNav
             </span>
             <div>
               <span className="farmer-name">{listing.farmerName}</span>
-              <div className="muted small">Farmer on FarmLink · {listing.location}</div>
+              <div className="muted small">Farmer on GoFarm · {listing.location}</div>
             </div>
           </div>
         </div>
@@ -201,7 +201,7 @@ export default function ListingDetails({ listingId, user, onBack, onLogin, onNav
             <div className="stack">
               <button className="btn primary full" onClick={onLogin}>Login with Google to request</button>
               <p className="muted small">
-                New here? Logging in lets you choose whether you buy or sell on FarmLink.
+                New here? Logging in lets you choose whether you buy or sell on GoFarm.
               </p>
             </div>
           )}

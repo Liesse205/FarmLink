@@ -5,7 +5,7 @@ import { Banner, RoleBadge, PageHeader } from './ui.jsx'
 const ROLE_EXPLANATIONS = {
   FARMER: 'You publish produce listings, receive purchase requests and accept or reject them.',
   BUYER: 'You browse the marketplace and send purchase requests to farmers.',
-  ADMIN: 'You manage users, listings and can review activity across FarmLink.'
+  ADMIN: 'You manage users, listings and can review activity across GoFarm.'
 }
 
 function initials(name = '') {
@@ -50,7 +50,7 @@ export default function Profile({ user, onNavigate, onLogout, onUserUpdated }) {
 
   return (
     <section>
-      <PageHeader title="Profile" subtitle="Your FarmLink account information." />
+      <PageHeader title="Profile" subtitle="Your GoFarm account information." />
 
       <Banner kind="success" onClose={() => setPhoneNotice('')}>{phoneNotice}</Banner>
       <Banner kind="error" onClose={() => setPhoneError('')}>{phoneError}</Banner>
@@ -66,7 +66,7 @@ export default function Profile({ user, onNavigate, onLogout, onUserUpdated }) {
 
           <div className="profile-fields">
             <div>
-              <div className="field-name">FarmLink role</div>
+              <div className="field-name">GoFarm role</div>
               <div className="field-value">
                 {user.role === 'FARMER' ? 'Farmer' : user.role === 'ADMIN' ? 'Administrator' : 'Buyer'}
               </div>
@@ -74,7 +74,7 @@ export default function Profile({ user, onNavigate, onLogout, onUserUpdated }) {
             <div>
               <div className="field-name">What you can do</div>
               <div className="field-value" style={{ fontWeight: 400 }}>
-                {ROLE_EXPLANATIONS[user.role] || 'Choose how you use FarmLink to unlock your dashboard.'}
+                {ROLE_EXPLANATIONS[user.role] || 'Choose how you use GoFarm to unlock your dashboard.'}
               </div>
             </div>
             <div>
