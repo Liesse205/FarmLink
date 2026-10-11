@@ -171,6 +171,40 @@ class UserServiceTest {
     }
 
     @Test
+    void phoneIsSavedTrimmedForTheCurrentUser() {
+        User farmer = User.builder().id(1L).name("Alice").email(EMAIL).role(Role.FARMER).build();
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(farmer));
+        persistSaving();
+
+        User user = userService.updatePhone(principalFor(EMAIL), " +250 788 123 456 ");
+
+        assertThat(user.getPhone()).isEqualTo("+250 788 123 456");
+        verify(userRepository).save(farmer);
+    }
+
+    @Test
+    void blankPhoneClearsTheStoredNumber() {
+        User farmer = User.builder().id(1L).name("Alice").email(EMAIL).role(Role.FARMER)
+                .phone("+250 788 123 456").build();
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(farmer));
+        persistSaving();
+
+        assertThat(userService.updatePhone(principalFor(EMAIL), "   ").getPhone()).isNull();
+        assertThat(userService.updatePhone(principalFor(EMAIL), null).getPhone()).isNull();
+    }
+
+    @Test
+    void unknownPrincipalCannotUpdateAPhoneNumber() {
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.empty());
+
+        ApiException exception =
+                assertThrows(ApiException.class, () -> userService.updatePhone(principalFor(EMAIL), "123"));
+
+        assertThat(exception.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
     void unknownPrincipalIsUnauthorized() {
         when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.empty());
 

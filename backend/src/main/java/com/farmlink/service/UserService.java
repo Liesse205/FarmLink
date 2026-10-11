@@ -62,6 +62,19 @@ public class UserService {
         return userRepository.save(user);
     }
 
+    /**
+     * Stores (or clears) the caller's own optional phone number. A null or blank
+     * value removes it; anything else is stored trimmed. Length is validated on the
+     * request DTO (max 30 characters). Only the caller can change their own number.
+     */
+    @Transactional
+    public User updatePhone(Principal principal, String phone) {
+        User user = getCurrentUser(principal);
+        String trimmed = phone == null ? null : phone.trim();
+        user.setPhone(trimmed == null || trimmed.isEmpty() ? null : trimmed);
+        return userRepository.save(user);
+    }
+
     @Transactional(readOnly = true)
     public User getCurrentUser(Principal principal) {
         String email = emailOf(principal);

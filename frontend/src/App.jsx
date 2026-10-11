@@ -154,7 +154,7 @@ export default function App() {
         {view === 'admin' && user?.role === 'ADMIN' && <AdminDashboard />}
 
         {view === 'profile' && user && (
-          <Profile user={user} onNavigate={go} onLogout={handleLogout} />
+          <Profile user={user} onNavigate={go} onLogout={handleLogout} onUserUpdated={setUser} />
         )}
 
         {isBlocked(view, user) && (

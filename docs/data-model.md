@@ -48,6 +48,7 @@ erDiagram
         string name
         string email UK "unique; login identity"
         string role "FARMER, BUYER or ADMIN; nullable"
+        string phone "optional, max 30; shared only with the counterpart of an ACCEPTED request"
     }
     PRODUCE_LISTING {
         bigint id PK
@@ -95,7 +96,7 @@ value in MongoDB, with no foreign key).
 
 | Entity | Responsibility |
 |---|---|
-| **User** | A platform participant identified by their Google e-mail. The `role` is nullable on purpose: `null` means first-login onboarding has not been completed, and such users can do nothing except read `/api/me` and choose a role. Roles are immutable once set. |
+| **User** | A platform participant identified by their Google e-mail. The `role` is nullable on purpose: `null` means first-login onboarding has not been completed, and such users can do nothing except read `/api/me` and choose a role. Roles are immutable once set. An optional `phone` (max 30 characters) can be added by the user themselves; together with the Google e-mail it forms the contact details that are shared **only** with the counterpart of an accepted purchase request (§7). |
 | **ProduceListing** | A farmer's offer. Always created with status `ACTIVE`; `INACTIVE` listings are hidden from the marketplace but keep their history. References its farmer (required, lazily loaded). |
 | **PurchaseRequest** | A buyer's structured interest in a quantity of a listing, with an explicit status lifecycle (`PENDING → ACCEPTED | REJECTED`) and a creation timestamp. Stores the quantity independently of the listing so history survives later stock edits. |
 | **Notification** | A single in-app message for one user, created only by the RabbitMQ consumer. Newest-first listing per user; there is no read/unread flag (documented limitation). |
@@ -125,6 +126,7 @@ DTO layers (see §7), not in the database.
 | `name` | varchar(255) | No | From the Google profile |
 | `email` | varchar(255) | No | Login identity |
 | `role` | varchar(20) | **Yes** | `FARMER` / `BUYER` / `ADMIN`; `null` = onboarding pending |
+| `phone` | varchar(30) | **Yes** | Optional phone number the user adds themselves (`PUT /api/me/phone`, blank clears it). Added automatically by Hibernate `ddl-auto: update` on first startup after the feature landed — no `schema.sql` change was needed. Never returned by any listing, request-list, notification or admin endpoint; only on `/api/me` (own number) and `GET /api/requests/{id}/contact` (counterpart of an accepted request, §7) |
 
 *Indexes:* `idx_users_email` — **unique** index on `email` (`@Index(unique = true)` in
 `User`).
@@ -270,6 +272,20 @@ methods are the enforcement points.
 * `GET /api/requests` returns different data per role: farmers see requests on their own
   listings, buyers see their own, admins see all; users without a role get an empty list
   (`PurchaseRequestService.list`).
+
+**Contact-detail sharing** (`PurchaseRequestService.contact`, endpoint
+`GET /api/requests/{id}/contact`)
+* Contact details (both participants' name, Google e-mail and optional phone, plus a
+  coordination instruction) are returned **only** when the request status is `ACCEPTED`
+  and **only** to the two participants — the buyer and the farmer who owns the listing.
+* Any other caller receives 403 (including admins and users without a role); unauthenticated
+  calls receive 401; `PENDING` and `REJECTED` requests share nothing (403 even for
+  participants). Nothing about contacts is stored on the request itself — the details are
+  read live from the two `users` rows at request time, so a phone number added or cleared
+  later is reflected immediately.
+* Contact fields never appear in any other response: not in `ListingResponse` (public
+  marketplace), not in `PurchaseRequestResponse` (any role's request list), not in
+  `UserResponse` (admin user list), and never in `AppEvent`/notification payloads.
 
 ## 8. Conceptual-to-Physical Mapping
 

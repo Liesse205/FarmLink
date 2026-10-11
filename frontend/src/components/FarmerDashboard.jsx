@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, formatDate, money } from '../api.js'
+import RequestContact from './RequestContact.jsx'
 import {
   Banner, EmptyState, ErrorState, Loading, PageHeader, StatCard, StatusBadge
 } from './ui.jsx'
@@ -315,6 +316,9 @@ export default function FarmerDashboard({ user, onRefreshNotifications }) {
                   </span>
                   {request.message && <span className="row-sub">“{request.message}”</span>}
                 </div>
+                {request.status === 'ACCEPTED' && (
+                  <RequestContact requestId={request.id} />
+                )}
                 {request.status === 'PENDING' && (
                   <div className="row-actions">
                     <button

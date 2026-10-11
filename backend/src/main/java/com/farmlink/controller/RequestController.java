@@ -2,6 +2,7 @@ package com.farmlink.controller;
 
 import com.farmlink.dto.PurchaseRequestCreateRequest;
 import com.farmlink.dto.PurchaseRequestResponse;
+import com.farmlink.dto.RequestContactResponse;
 import com.farmlink.service.PurchaseRequestService;
 import com.farmlink.service.UserService;
 import jakarta.validation.Valid;
@@ -38,6 +39,15 @@ public class RequestController {
         PurchaseRequestResponse created =
                 requestService.create(request, userService.getCurrentUser(principal));
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    /**
+     * Contact details of both participants, only for ACCEPTED requests and only for
+     * the two participants themselves (enforced in {@link PurchaseRequestService#contact}).
+     */
+    @GetMapping("/{id}/contact")
+    public RequestContactResponse contact(@PathVariable Long id, Principal principal) {
+        return requestService.contact(id, userService.getCurrentUser(principal));
     }
 
     @PutMapping("/{id}/accept")
