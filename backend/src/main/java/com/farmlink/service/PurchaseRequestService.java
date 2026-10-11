@@ -3,6 +3,7 @@ package com.farmlink.service;
 import com.farmlink.dto.AppEvent;
 import com.farmlink.dto.PurchaseRequestCreateRequest;
 import com.farmlink.dto.PurchaseRequestResponse;
+import com.farmlink.dto.RequestContactResponse;
 import com.farmlink.entity.ActivityType;
 import com.farmlink.entity.ListingStatus;
 import com.farmlink.entity.ProduceListing;
@@ -129,6 +130,30 @@ public class PurchaseRequestService {
             case ADMIN -> requestRepository.findAll();
         };
         return requests.stream().map(PurchaseRequestResponse::from).toList();
+    }
+
+    /**
+     * Contact details of the two participants of an <b>ACCEPTED</b> purchase request.
+     * Enforced here in the service layer (not just the frontend): only the buyer and
+     * the farmer who owns the listing may see each other's details, and only once the
+     * request has been accepted. Everyone else — including admins and other farmers —
+     * receives 403; pending and rejected requests share nothing.
+     */
+    @Transactional(readOnly = true)
+    public RequestContactResponse contact(Long id, User actor) {
+        PurchaseRequest request = find(id);
+        User farmer = request.getListing().getFarmer();
+        User buyer = request.getBuyer();
+
+        boolean isParticipant = farmer.getId().equals(actor.getId()) || buyer.getId().equals(actor.getId());
+        if (!isParticipant) {
+            throw ApiException.forbidden("Only the buyer and the listing owner can view contact details "
+                    + "for this request");
+        }
+        if (request.getStatus() != RequestStatus.ACCEPTED) {
+            throw ApiException.forbidden("Contact details are shared only once a request has been accepted");
+        }
+        return RequestContactResponse.from(request, actor.getId());
     }
 
     private PurchaseRequest find(Long id) {

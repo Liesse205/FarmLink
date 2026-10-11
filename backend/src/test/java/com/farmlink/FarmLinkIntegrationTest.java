@@ -231,6 +231,163 @@ class FarmLinkIntegrationTest {
                 .isTrue();
     }
 
+    @Test
+    void contactDetailsAreOnlySharedWithParticipantsOfAnAcceptedRequest() throws Exception {
+        ProduceListing listing = seedListing(100);
+        Long requestId = seedRequest(listing, 40);
+
+        // hidden from everyone while the request is pending
+        mockMvc.perform(get("/api/requests/" + requestId + "/contact")
+                        .with(user(BUYER_EMAIL).roles("BUYER")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/requests/" + requestId + "/contact")
+                        .with(user(FARMER_EMAIL).roles("FARMER")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/requests/" + requestId + "/contact"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(put("/api/requests/" + requestId + "/accept")
+                        .with(user(FARMER_EMAIL).roles("FARMER")))
+                .andExpect(status().isOk());
+
+        // both participants now see each other, with the coordination instruction
+        mockMvc.perform(get("/api/requests/" + requestId + "/contact")
+                        .with(user(BUYER_EMAIL).roles("BUYER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.viewerId").value(buyer.getId()))
+                .andExpect(jsonPath("$.farmer.email").value(FARMER_EMAIL))
+                .andExpect(jsonPath("$.farmer.name").value("IT Farmer"))
+                .andExpect(jsonPath("$.buyer.email").value(BUYER_EMAIL))
+                .andExpect(jsonPath("$.instruction").value(containsString("collection or delivery")));
+        mockMvc.perform(get("/api/requests/" + requestId + "/contact")
+                        .with(user(FARMER_EMAIL).roles("FARMER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.buyer.email").value(BUYER_EMAIL))
+                .andExpect(jsonPath("$.buyer.name").value("IT Buyer"))
+                .andExpect(jsonPath("$.farmer.phone").value(nullValue()));
+
+        // third parties stay locked out — including admins and unauthenticated callers
+        mockMvc.perform(get("/api/requests/" + requestId + "/contact")
+                        .with(user(FARMER2_EMAIL).roles("FARMER")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/requests/" + requestId + "/contact")
+                        .with(user(ADMIN_EMAIL).roles("ADMIN")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/requests/" + requestId + "/contact"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void contactDetailsStayHiddenForRejectedRequests() throws Exception {
+        ProduceListing listing = seedListing(100);
+        Long rejectedId = seedRequest(listing, 20);
+
+        mockMvc.perform(put("/api/requests/" + rejectedId + "/reject")
+                        .with(user(FARMER_EMAIL).roles("FARMER")))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/requests/" + rejectedId + "/contact")
+                        .with(user(BUYER_EMAIL).roles("BUYER")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/requests/" + rejectedId + "/contact")
+                        .with(user(FARMER_EMAIL).roles("FARMER")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void contactDetailsNeverAppearInPublicOrUnrelatedResponses() throws Exception {
+        ProduceListing listing = seedListing(100);
+        Long acceptedId = seedRequest(listing, 30);
+        mockMvc.perform(put("/api/requests/" + acceptedId + "/accept")
+                        .with(user(FARMER_EMAIL).roles("FARMER")))
+                .andExpect(status().isOk());
+
+        // public listing detail carries no e-mail or phone data
+        String listingBody = mockMvc.perform(get("/api/listings/" + listing.getId()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(listingBody).doesNotContain(FARMER_EMAIL).doesNotContain("phone");
+
+        // a buyer's own request list carries no contact fields
+        String requestsBody = mockMvc.perform(get("/api/requests")
+                        .with(user(BUYER_EMAIL).roles("BUYER")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(requestsBody).doesNotContain("\"email\"").doesNotContain("phone");
+
+        // the admin user list has no phone numbers
+        String usersBody = mockMvc.perform(get("/api/admin/users")
+                        .with(user(ADMIN_EMAIL).roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(usersBody).doesNotContain("phone");
+    }
+
+    @Test
+    void buyersCanAddAnOptionalPhoneThatIsValidatedAndClearable() throws Exception {
+        mockMvc.perform(put("/api/me/phone").with(user(BUYER_EMAIL).roles("BUYER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"phone\":\" +250 788 123 456 \"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.phone").value("+250 788 123 456"));
+
+        mockMvc.perform(get("/api/me").with(user(BUYER_EMAIL).roles("BUYER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.phone").value("+250 788 123 456"));
+
+        // over-long numbers are rejected with a field-level 400
+        mockMvc.perform(put("/api/me/phone").with(user(BUYER_EMAIL).roles("BUYER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"phone\":\"1234567890123456789012345678901\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("phone")));
+
+        // a blank value clears the number again
+        mockMvc.perform(put("/api/me/phone").with(user(BUYER_EMAIL).roles("BUYER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"phone\":\"\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.phone").value(nullValue()));
+
+        mockMvc.perform(put("/api/me/phone"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithMockUser(username = BUYER_EMAIL, authorities = "ROLE_BUYER")
+    void acceptedRequestSharesEachSidesContactIncludingOptionalPhone() throws Exception {
+        mockMvc.perform(put("/api/me/phone")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"phone\":\"+250788123456\"}"))
+                .andExpect(status().isOk());
+
+        ProduceListing listing = seedListing(100);
+        Long requestId = createRequestAsBuyer(listing, 25);
+
+        // still pending → nothing is shared
+        mockMvc.perform(get("/api/requests/" + requestId + "/contact"))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(put("/api/requests/" + requestId + "/accept")
+                        .with(user(FARMER_EMAIL).roles("FARMER")))
+                .andExpect(status().isOk());
+
+        // the buyer sees the farmer (no phone on file → null, handled gracefully)
+        mockMvc.perform(get("/api/requests/" + requestId + "/contact"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.farmer.email").value(FARMER_EMAIL))
+                .andExpect(jsonPath("$.farmer.phone").value(nullValue()))
+                .andExpect(jsonPath("$.buyer.phone").value("+250788123456"))
+                .andExpect(jsonPath("$.instruction").isNotEmpty());
+
+        // the farmer sees the buyer's phone too
+        mockMvc.perform(get("/api/requests/" + requestId + "/contact")
+                        .with(user(FARMER_EMAIL).roles("FARMER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.buyer.email").value(BUYER_EMAIL))
+                .andExpect(jsonPath("$.buyer.phone").value("+250788123456"));
+    }
+
     private ProduceListing seedListing(int quantity) {
         return listingRepository.save(ProduceListing.builder()
                 .farmer(farmer)

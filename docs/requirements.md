@@ -65,6 +65,13 @@ accounts.
 * Farmer listing lifecycle: create (starts `ACTIVE`), edit, deactivate/reactivate.
 * Purchase-request lifecycle: create (`PENDING`) → `ACCEPTED` (with stock deduction and
   automatic deactivation of the listing at zero stock) or `REJECTED`.
+* Post-acceptance contact sharing: once a request is `ACCEPTED`, the two participants (the
+  buyer and the listing owner) can see each other's name, Google e-mail and optional phone
+  number, with an instruction to coordinate collection or delivery. Enforced server-side;
+  pending/rejected requests and non-participants (including admins) are refused.
+* Optional phone number: a user may store or clear their own phone number
+  (`PUT /api/me/phone`, ≤ 30 characters); the Google e-mail captured at login remains the
+  primary contact channel.
 * In-app notifications delivered asynchronously via RabbitMQ: new request → farmer;
   acceptance/rejection → buyer. The navbar bell polls every 15 s.
 * Activity/audit events in MongoDB for all listing and request actions, shown in the admin
@@ -90,6 +97,11 @@ are intentionally excluded to keep the project focused on listings and request c
   tested.
 * The RabbitMQ consumer is at-least-once: a redelivered message would create a duplicate
   notification (no idempotency key). Not observable in normal use, noted for completeness.
+* **Accepted-request contact sharing has no expiry or revocation** — once a request is
+  accepted, the two participants keep access to each other's contact details; there is no
+  un-accept action and no in-app messaging fallback (the feature only reveals existing
+  contact information). The phone number is optional, so e-mail is the only guaranteed
+  channel.
 
 ## 5. Functional Requirements
 
@@ -119,6 +131,8 @@ Priority uses MoSCoW (Must / Should / Could). Status reflects the repository as 
 | FR-20 | Listing photo upload | — | Future work |
 | FR-21 | Pagination / sorting options on list endpoints | — | Future work |
 | FR-22 | Notification read-state and deletion | — | Future work |
+| FR-23 | Once a purchase request is `ACCEPTED`, the two participants (buyer and listing owner) shall be able to retrieve each other's contact details — name, Google e-mail and optional phone — plus a short coordination instruction (`GET /api/requests/{id}/contact`). `PENDING` and `REJECTED` requests shall share nothing; any other caller (including admins, other farmers and users without a role) shall receive 403; unauthenticated callers shall receive 401 | Must | Implemented |
+| FR-24 | A user shall be able to store or clear their own optional phone number (`PUT /api/me/phone`, ≤ 30 characters, blank clears). The number shall never appear in public listings, request lists, notification payloads or the admin user list — only on `/api/me` (own number) and the accepted-request contact endpoint | Must | Implemented |
 
 ## 6. Quality Attributes
 
@@ -149,7 +163,7 @@ No performance measurements have been taken; none are claimed.
 
 ### 6.3 Reliability
 
-* **Acceptance criterion:** the automated suite — 16 unit tests and 12 integration tests
+* **Acceptance criterion:** the automated suite — 23 unit tests and 17 integration tests
   against real PostgreSQL, MongoDB and RabbitMQ — passes on every push/PR in CI.
 * **Verification method:** GitHub Actions runs (`.github/workflows/ci.yml`); integration
   tests are flag-gated (`-Dfarmlink.integration=true`) and skip cleanly without
@@ -165,12 +179,20 @@ No performance measurements have been taken; none are claimed.
   * unauthenticated calls to protected `/api/**` endpoints return JSON 401;
   * wrong-role calls return 403 and do not change state;
   * a user can neither self-select ADMIN nor change an existing role;
+  * contact details of an accepted request are returned only to its two participants —
+    not to admins, not to other users, not while the request is pending or rejected, and
+    never through any public or unrelated endpoint;
   * no secrets are stored in the repository (all credentials via environment variables;
     `.env` is git-ignored).
 * **Verification method:** integration tests `marketplaceIsPublicButProtectedEndpointsNeedLogin`,
   `buyerIsForbiddenFromFarmerAndAdminEndpoints`, `buyersCannotProcessRequests`,
-  `newUserMustChooseARoleBeforeUsingRoleSpecificEndpoints`; unit tests
-  `adminCanNeverBeChosenByTheUser`, `roleCannotBeChangedAfterItWasChosen`.
+  `newUserMustChooseARoleBeforeUsingRoleSpecificEndpoints`,
+  `contactDetailsAreOnlySharedWithParticipantsOfAnAcceptedRequest`,
+  `contactDetailsStayHiddenForRejectedRequests`,
+  `contactDetailsNeverAppearInPublicOrUnrelatedResponses`; unit tests
+  `adminCanNeverBeChosenByTheUser`, `roleCannotBeChangedAfterItWasChosen`,
+  `nonParticipantsAreForbiddenFromContactDetails`,
+  `contactDetailsAreHiddenWhileTheRequestIsPendingOrRejected`.
 * **Status: actually covered by automated tests** (secret hygiene is verified by repository
   inspection). Known gaps — CSRF disabled, no rate limiting, no deprovisioning UI — are
   documented in `README.md` §13 and accepted for a coursework demo system.
@@ -219,6 +241,30 @@ No performance measurements have been taken; none are claimed.
 * **Given** a request on another farmer's listing, **when** I try to accept it, **then**
   the server responds 403. *(Test: `onlyTheListingOwnerCanProcessARequest`.)*
 
+### US-4 — As a buyer (or farmer), I want to see the other party's contact details once a request is accepted, so that we can arrange collection or delivery directly.
+
+* **Given** my purchase request is `PENDING` or `REJECTED`, **when** I call
+  `GET /api/requests/{id}/contact`, **then** the server responds 403 and shares nothing.
+  *(Tests: `contactDetailsAreOnlySharedWithParticipantsOfAnAcceptedRequest`,
+  `contactDetailsStayHiddenForRejectedRequests`,
+  `contactDetailsAreHiddenWhileTheRequestIsPendingOrRejected`.)*
+* **Given** the farmer accepts my request, **when** I call the same endpoint, **then** I
+  receive the farmer's name, Google e-mail and optional phone (null when none was added)
+  plus a short instruction to coordinate collection or delivery — and the farmer receives
+  my contact details the same way.
+  *(Tests: `acceptedRequestSharesEachSidesContactIncludingOptionalPhone`,
+  `bothParticipantsCanSeeEachOthersContactDetailsOnceAccepted`,
+  `contactDetailsAreGracefulWhenNoPhoneNumberWasAdded`.)*
+* **Given** I am any other user — another farmer, a different buyer, or an admin —
+  **when** I call the endpoint for someone else's accepted request, **then** the server
+  responds 403; without login it responds 401.
+  *(Tests: `contactDetailsAreOnlySharedWithParticipantsOfAnAcceptedRequest`,
+  `nonParticipantsAreForbiddenFromContactDetails`.)*
+* **Given** the request is accepted, **when** any user lists the marketplace, their
+  requests, notifications or the admin user list, **then** no e-mail or phone contact
+  fields are present in those responses.
+  *(Test: `contactDetailsNeverAppearInPublicOrUnrelatedResponses`.)*
+
 ## 8. Requirements Verification Matrix
 
 Mapping of requirements to implementation areas and automated tests where one exists.
@@ -242,7 +288,9 @@ Mapping of requirements to implementation areas and automated tests where one ex
 | FR-15 | `AdminDashboard.jsx` → `PUT /api/listings/{id}` | Covered by FR-07 ownership rules (no dedicated admin-moderation test) |
 | FR-16 | `GlobalExceptionHandler` / `ApiError` | Exercised implicitly by every 4xx integration assertion |
 | FR-17 | `SecurityConfig` matchers + service-layer checks | See FR-01…FR-09 tests above |
+| FR-23 | `PurchaseRequestService.contact` (participant + `ACCEPTED` checks), `RequestController` (`GET /api/requests/{id}/contact`), `RequestContactResponse`, `RequestContact.jsx` | `contactDetailsAreOnlySharedWithParticipantsOfAnAcceptedRequest`, `contactDetailsStayHiddenForRejectedRequests`, `acceptedRequestSharesEachSidesContactIncludingOptionalPhone`, `bothParticipantsCanSeeEachOthersContactDetailsOnceAccepted`, `contactDetailsAreHiddenWhileTheRequestIsPendingOrRejected`, `nonParticipantsAreForbiddenFromContactDetails`, `contactDetailsAreGracefulWhenNoPhoneNumberWasAdded` |
+| FR-24 | `User.phone`, `UserService.updatePhone`, `UserController` (`PUT /api/me/phone`), `MeResponse` (separate from the admin `UserResponse`), `Profile.jsx` | `buyersCanAddAnOptionalPhoneThatIsValidatedAndClearable`, `contactDetailsNeverAppearInPublicOrUnrelatedResponses`, `phoneIsSavedTrimmedForTheCurrentUser`, `blankPhoneClearsTheStoredNumber`, `unknownPrincipalCannotUpdateAPhoneNumber` |
 
-*Test counts:* 16 unit tests (`ListingServiceTest`, `PurchaseRequestServiceTest`,
-`UserServiceTest`) and 12 integration tests (`FarmLinkIntegrationTest`, HTTP-level, real
+*Test counts:* 23 unit tests (`ListingServiceTest`, `PurchaseRequestServiceTest`,
+`UserServiceTest`) and 17 integration tests (`FarmLinkIntegrationTest`, HTTP-level, real
 PostgreSQL/MongoDB/RabbitMQ). Commands: see `README.md` §11.

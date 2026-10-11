@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api, formatDate } from '../api.js'
+import RequestContact from './RequestContact.jsx'
 import {
   Banner, EmptyState, ErrorState, Loading, PageHeader, StatCard, StatusBadge
 } from './ui.jsx'
@@ -112,6 +113,9 @@ export default function BuyerDashboard({ user, onOpenListing, onBrowse }) {
                     {request.message ? ` · “${request.message}”` : ''}
                   </span>
                 </div>
+                {request.status === 'ACCEPTED' && (
+                  <RequestContact requestId={request.id} />
+                )}
                 <div className="row-actions">
                   <button className="btn secondary sm" onClick={() => onOpenListing?.(request.listingId)}>
                     View listing

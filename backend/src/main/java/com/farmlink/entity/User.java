@@ -39,4 +39,12 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(length = 20)
     private Role role;
+
+    /**
+     * Optional phone number the user may add so the counterparty of an accepted
+     * purchase request can reach them. Kept nullable on purpose: the Google e-mail
+     * is the primary contact channel, the phone number is a convenience extra.
+     */
+    @Column(length = 30)
+    private String phone;
 }
