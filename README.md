@@ -134,6 +134,26 @@ regardless of what the UI shows.
 * Buyers track every request with status badges (Pending / Accepted / Rejected) and tab
   filters on their dashboard.
 
+### Post-acceptance contact sharing
+
+* Once a request is **ACCEPTED**, both participants can see each other's contact details:
+  name, Google e-mail, and an optional phone number the user may add on their profile
+  page (`PUT /api/me/phone`, max 30 characters, blank clears it).
+* Each accepted request shows the counterparty's details together with a short instruction
+  to coordinate collection or delivery — on the farmer's dashboard (buyer's details) and
+  the buyer's dashboard (farmer's details).
+* **Enforced in the backend, not just the UI** (`GET /api/requests/{id}/contact`): only the
+  buyer and the listing owner may see each other's details, and only while the request is
+  `ACCEPTED`. Pending and rejected requests share nothing (403); everyone else — including
+  admins and other farmers — gets 403; unauthenticated calls get 401.
+* Contact details never appear in public listings, request lists, notification payloads or
+  the admin user list, and users without a phone number are handled gracefully (e-mail
+  remains the reliable channel).
+* **Limitations:** there is still no in-app chat or messaging (out of scope) — the feature
+  only reveals existing contact information; the phone number is optional, so e-mail is the
+  only guaranteed channel; and once accepted, the two participants keep access to each
+  other's details (no expiry or revocation).
+
 ### Notifications and activity/audit events
 
 * Accepting or rejecting a request publishes an event to RabbitMQ
@@ -170,11 +190,13 @@ regardless of what the UI shows.
 | PUT | `/api/listings/{id}` | FARMER/ADMIN | Update listing / status (owner enforced) |
 | GET | `/api/requests` | authenticated | Buyer: own · Farmer: incoming · Admin: all |
 | POST | `/api/requests` | BUYER | Submit request (`PENDING`) → 201 |
+| GET | `/api/requests/{id}/contact` | buyer + listing owner, `ACCEPTED` only | Both participants' contact details + coordination instruction; 403 for pending/rejected requests and for everyone else |
 | PUT | `/api/requests/{id}/accept` | listing owner | `PENDING → ACCEPTED`, deducts stock |
 | PUT | `/api/requests/{id}/reject` | listing owner | `PENDING → REJECTED` |
 | GET | `/api/notifications` | authenticated | Own notifications |
-| GET | `/api/me` | authenticated | Current user (`role: null` → onboarding pending) |
+| GET | `/api/me` | authenticated | Current user (`role: null` → onboarding pending; includes own optional phone) |
 | POST | `/api/me/role` | authenticated | First-time onboarding `{"role":"FARMER"\|"BUYER"}`; 409 if already set; ADMIN rejected with 400 |
+| PUT | `/api/me/phone` | authenticated | Store or clear own optional phone number (≤ 30 chars; blank clears) |
 | GET | `/api/admin/stats` | ADMIN | User / listing / request counters |
 | GET | `/api/admin/activity` | ADMIN | 20 most recent activity events |
 | GET | `/api/admin/users` | ADMIN | All users |
@@ -264,7 +286,7 @@ farmlink/
 │       │   └── service/      # business logic, event publisher + MQ consumer
 │       ├── main/resources/   # application.yml, schema.sql
 │       └── test/java/com/farmlink/
-│           ├── FarmLinkIntegrationTest.java   # 12 integration tests (flag-gated)
+│           ├── FarmLinkIntegrationTest.java   # 17 integration tests (flag-gated)
 │           └── service/       # ListingServiceTest, PurchaseRequestServiceTest, UserServiceTest
 └── frontend/
     ├── index.html
@@ -429,11 +451,13 @@ cd backend
 .\mvnw.cmd test
 ```
 
-Currently **16 unit tests** across `ListingServiceTest`, `PurchaseRequestServiceTest` and
+Currently **23 unit tests** across `ListingServiceTest`, `PurchaseRequestServiceTest` and
 `UserServiceTest`. They verify, with mocked repositories: listing validation and ownership,
 purchase-request rules (quantity bounds, active listing, owner-only processing, stock
-deduction), and the onboarding rules (new account has no role, ADMIN allowlist, role chosen
-once, ADMIN never self-selectable).
+deduction), the onboarding rules (new account has no role, ADMIN allowlist, role chosen
+once, ADMIN never self-selectable), the post-acceptance contact-sharing rules (participants
+only, accepted only, graceful when no phone is on file) and the optional phone number
+(saves trimmed, blank clears, unknown caller rejected).
 
 **Backend integration tests** (require the Docker services from [§10](#10-running-the-project-locally)
 step 3 to be running):
@@ -442,14 +466,17 @@ step 3 to be running):
 .\mvnw.cmd test -Dfarmlink.integration=true
 ```
 
-Currently **12 integration tests** in `FarmLinkIntegrationTest`. They are flag-gated
+Currently **17 integration tests** in `FarmLinkIntegrationTest`. They are flag-gated
 (`-Dfarmlink.integration=true`) and are **skipped** by a plain `mvnw test`, so unit-test runs
 never need infrastructure. They boot the full application against real PostgreSQL, MongoDB
 and RabbitMQ and exercise real HTTP calls: public vs. protected endpoints, 401/403 RBAC,
 first-time role onboarding, admin dashboard access, farmer listing CRUD with the MongoDB
 activity record, marketplace search/category/location filters and facets, over-requesting
-produce, owner-only accept/reject, reprocessing a processed request, stock deduction, and
-the RabbitMQ notification reaching the buyer. Tests create and clean up their own
+produce, owner-only accept/reject, reprocessing a processed request, stock deduction, the
+RabbitMQ notification reaching the buyer, and the contact-sharing rules (accepted requests
+reveal both participants to each other, pending/rejected requests and non-participants are
+refused, contact details never leak into public or unrelated responses, and the optional
+phone number validates, saves and clears). Tests create and clean up their own
 `it-*@example.com` users.
 
 **Frontend production build:**
@@ -496,6 +523,12 @@ Verified protections implemented in the codebase:
 * **Ownership checks in the service layer** — a farmer can only edit their own listings and
   only accept/reject requests on listings they own; other users (including admins for
   request processing) receive `403`. Accepting a request re-validates status and stock.
+* **Participant-only contact sharing** — contact details (e-mail, optional phone) are only
+  returned by `GET /api/requests/{id}/contact`, only for `ACCEPTED` requests, and only to
+  the buyer and the listing owner (checked in `PurchaseRequestService.contact`); everyone
+  else receives 403 and unauthenticated callers 401. Contact fields are not part of any
+  listing, request-list, notification or admin response, and users can only edit their own
+  phone number (`PUT /api/me/phone`).
 * **Input validation** — Jakarta Bean Validation on all request DTOs (`@NotBlank`,
   `@NotNull`, `@Positive`, `@Size`) plus service-level rules (e.g. request quantity ≤
   available stock). Validation failures return 400 with a field-level message.
@@ -531,6 +564,10 @@ Genuine limitations of the current implementation:
 
 * Notifications have no read/unread state or deletion — the bell shows all notifications,
   newest first.
+* Accepted purchase requests share contact details with the two participants **indefinitely**
+  — there is no expiry, revocation, or un-accept action, and no in-app chat/messaging
+  exists to fall back on (the feature only reveals contact information, it does not add
+  communication). The phone number is optional, so e-mail is the only guaranteed channel.
 * List endpoints return complete lists without pagination or infinite scroll — fine at
   coursework scale, not at marketplace scale.
 * The database schema is managed with Hibernate `ddl-auto: update`, which is acceptable for
